@@ -14,9 +14,12 @@ import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 import java.util.Random;
@@ -25,6 +28,7 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.X509Principal;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.provider.X509CertificateObject;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.util.io.pem.PemObject;
@@ -55,6 +59,8 @@ public class Cliente {
 
 	private final static String ALGORITMO_ASIM = "RSA";
 	private final static String ALGORITMO_SIM = "AES";
+//	private final static String ALGORITMO_SIM = "AES/ECB/PKCS5Padding";
+	private final static String PROVIDER = "BC";
 
 	public Cliente()
 	{
@@ -107,11 +113,13 @@ public class Cliente {
 				X509CertificateHolder servCert = (X509CertificateHolder) pemPar.readObject();
 				pemPar.close();
 				pubKeyServer = new JcaX509CertificateConverter().getCertificate( servCert ).getPublicKey();
-				//System.out.println(pubKey);
+				System.out.println("La llave recibida es: " + pubKeyServer);
 
 				reto();
 
 				autenticar();
+				
+				transaccion();
 
 			}
 		}
@@ -159,6 +167,7 @@ public class Cliente {
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
+		Security.addProvider(new BouncyCastleProvider());
 		new Cliente();
 	}
 
@@ -189,7 +198,6 @@ public class Cliente {
 			respuesta = new String (retoRespuesta);
 			System.out.println(new String(retoRespuesta)+"RECIBIDO");
 
-			//			System.out.println(Integer.parseInt(respuesta, 16));
 			if(Integer.parseInt(respuesta)==reto)
 				escritor.println("OK");
 
@@ -221,8 +229,10 @@ public class Cliente {
 			cipher.init(Cipher.DECRYPT_MODE, priKeyCliente);
 			byte[] data = DatatypeConverter.parseHexBinary(respuesta);
 			simKey = new SecretKeySpec(cipher.doFinal(data),ALGORITMO_SIM);
+			System.out.println("La llave simétrica es: " + simKey);
 
-			String autStr = "usuario,clave";			
+			String autStr = "usuario,clave";
+			System.out.println("El usuario y la clave es: " + autStr);
 			cipher = Cipher.getInstance(ALGORITMO_SIM);
 			cipher.init(Cipher.ENCRYPT_MODE, simKey);
 			byte[] cipAut = cipher.doFinal(autStr.getBytes());
@@ -231,9 +241,8 @@ public class Cliente {
 			respuesta = lector.readLine();
 			cipher.init(Cipher.DECRYPT_MODE, simKey);
 			byte[] bRes = cipher.doFinal(DatatypeConverter.parseHexBinary(respuesta));
-			respuesta = new String (bRes);
-			System.out.println(respuesta);
-			
+			respuesta = new String(bRes);
+			System.out.println("La respuesta recibida es: " + respuesta);
 			if(!respuesta.equalsIgnoreCase("OK")) {
 				throw new Exception("No se logró autenticar.");
 			}
@@ -262,6 +271,60 @@ public class Cliente {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+	
+	public void transaccion() {
+		try {
+			String cedula = "1072699444";
+			System.out.println("La cédula es: " + cedula);
+			Cipher cipher = Cipher.getInstance(ALGORITMO_SIM);
+			cipher.init(Cipher.ENCRYPT_MODE, simKey);
+			byte[] cipCed = cipher.doFinal(cedula.getBytes());
+			String hexCipCed = DatatypeConverter.printHexBinary(cipCed);
+			
+			int hsCed = cedula.hashCode();
+			System.out.println("El código hash de la cédula es: " + hsCed);
+			byte[] cipHsCed = cipher.doFinal((String.valueOf(hsCed)).getBytes());
+			String hexCipHsCed = DatatypeConverter.printHexBinary(cipHsCed);
+			
+			String cipMes = hexCipCed + ":" + hexCipHsCed;
+			System.out.println("El mensaje enviado es: " + cipMes);
+			escritor.println(cipMes);			
+			
+			String respuesta = lector.readLine();
+			cipher.init(Cipher.DECRYPT_MODE, simKey);
+			byte[] bRes = cipher.doFinal(DatatypeConverter.parseHexBinary(respuesta));
+			respuesta = new String(bRes);
+			System.out.println("La respuesta recibida es: " + respuesta);
+			if(!respuesta.equalsIgnoreCase("OK")) {
+				throw new Exception("No se logró transmitir.");
+			}
+			else
+				System.out.println("LOHICIMOS");
+			
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 }
