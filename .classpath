@@ -4,5 +4,6 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="servidor/bcprov-jdk15on-158.jar"/>
 	<classpathentry kind="lib" path="servidor/javax.xml.bind.jar"/>
+	<classpathentry kind="lib" path="servidor/bcpkix-jdk15on-158.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
