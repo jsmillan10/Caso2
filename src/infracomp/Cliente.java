@@ -33,6 +33,7 @@ import org.bouncycastle.util.io.pem.PemReader;
 import org.bouncycastle.util.io.pem.PemWriter;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
 
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -48,10 +49,10 @@ public class Cliente {
 	Socket sock = null;
 	PrintWriter escritor = null;
 	BufferedReader lector = null;
-	PrivateKey priKey = null;
-	PublicKey pubKey = null;
+	PrivateKey priKeyCliente = null;
+	PublicKey pubKeyServer = null;
 	SecretKey simKey = null;
-	
+
 	private final static String ALGORITMO_ASIM = "RSA";
 	private final static String ALGORITMO_SIM = "AES/ECB/PKCS5Padding";
 
@@ -83,7 +84,7 @@ public class Cliente {
 			System.out.println(respuesta);
 			if(respuesta.equals("OK"))
 			{
-				
+
 				String certHecho = generarCertificado();
 				escritor.println("CERTCLNT:" + certHecho);
 				String certRecibido = "";
@@ -93,25 +94,25 @@ public class Cliente {
 					certRecibido+= respuesta;
 				}
 				certRecibido+="\n" +respuesta;
-				
+
 				StringReader inPem = new StringReader(certRecibido);
-				
-//				PemReader pemRea = new PemReader(inPem);
-//				PemObject pemObj = pemRea.readPemObject();
-//				pemRea.close();
-				
-//				PemObject pemObj = 
-				
+
+				//				PemReader pemRea = new PemReader(inPem);
+				//				PemObject pemObj = pemRea.readPemObject();
+				//				pemRea.close();
+
+				//				PemObject pemObj = 
+
 				PEMParser pemPar = new PEMParser(inPem);
 				X509CertificateHolder servCert = (X509CertificateHolder) pemPar.readObject();
 				pemPar.close();
-				pubKey = new JcaX509CertificateConverter().getCertificate( servCert ).getPublicKey();
-				System.out.println(pubKey);
-				
+				pubKeyServer = new JcaX509CertificateConverter().getCertificate( servCert ).getPublicKey();
+				//System.out.println(pubKey);
+
 				reto();
-				
+
 				autenticar();
-				
+
 			}
 		}
 
@@ -145,7 +146,7 @@ public class Cliente {
 		v3Cert.setSignatureAlgorithm("SHA256withRSA");
 
 		X509Certificate cert = v3Cert.generate(keyPair.getPrivate());
-		priKey = keyPair.getPrivate();
+		priKeyCliente = keyPair.getPrivate();
 		StringWriter out = new StringWriter();
 		PemWriter pem = new PemWriter(out);
 		pem.writeObject(new PemObject("CERTIFICATE", cert.getEncoded()));
@@ -160,7 +161,7 @@ public class Cliente {
 		// TODO Auto-generated method stub
 		new Cliente();
 	}
-	
+
 	/**
 	 * Envío y confirmación del reto.
 	 */
@@ -174,16 +175,24 @@ public class Cliente {
 				//de números con un número par de dígitos, como 01 o 4875 o 195723.
 				reto = (int) (rand.nextInt()*10000+1);
 			}
-			System.out.println(reto);
+			System.out.println(reto + "ENVIADO");
 			Cipher cipher = Cipher.getInstance(ALGORITMO_ASIM);
-			cipher.init(Cipher.ENCRYPT_MODE, pubKey);
+			cipher.init(Cipher.ENCRYPT_MODE, pubKeyServer);
 			String hexa = DatatypeConverter.printHexBinary(cipher.doFinal(String.valueOf(reto).getBytes()));
+			System.out.println(hexa + "HEXA");
 			escritor.println(hexa);	
 			String respuesta = "";
 			respuesta = lector.readLine();
 			respuesta = lector.readLine();
-//			System.out.println(Integer.parseInt(respuesta, 16));
-			escritor.println("OK");
+
+			byte[] retoRespuesta = DatatypeConverter.parseHexBinary(respuesta);
+			respuesta = new String (retoRespuesta);
+			System.out.println(new String(retoRespuesta)+"RECIBIDO");
+
+			//			System.out.println(Integer.parseInt(respuesta, 16));
+			if(Integer.parseInt(respuesta)==reto)
+				escritor.println("OK Sirvio");
+
 		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -204,22 +213,22 @@ public class Cliente {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public void autenticar() {
 		try {
 			String respuesta = lector.readLine();
 			Cipher cipher = Cipher.getInstance(ALGORITMO_ASIM);
-			cipher.init(Cipher.DECRYPT_MODE, priKey);
+			cipher.init(Cipher.DECRYPT_MODE, priKeyCliente);
 			byte[] data = DatatypeConverter.parseHexBinary(respuesta);
 			simKey = new SecretKeySpec(cipher.doFinal(data),ALGORITMO_SIM);
 			System.out.println(simKey);
-			
+
 			String autStr = "usuario,clave";			
 			cipher = Cipher.getInstance(ALGORITMO_SIM);
 			cipher.init(Cipher.ENCRYPT_MODE, simKey);
 			byte[] cipAut = cipher.doFinal(autStr.getBytes());
 			escritor.println(DatatypeConverter.printHexBinary(cipAut));
-			
+
 			respuesta = lector.readLine();
 			cipher.init(Cipher.DECRYPT_MODE, simKey);
 			byte[] bRes = cipher.doFinal(DatatypeConverter.parseHexBinary(respuesta));
@@ -227,7 +236,7 @@ public class Cliente {
 			if(!respuesta.equalsIgnoreCase("OK")) {
 				throw new Exception("No se logró autenticar.");
 			}
-			
+
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
