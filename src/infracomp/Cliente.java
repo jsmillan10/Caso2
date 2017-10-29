@@ -58,16 +58,22 @@ public class Cliente {
 	PrivateKey priKeyCliente = null;
 	PublicKey pubKeyServer = null;
 	SecretKey simKey = null;
+	String algSim = "";
+	String algDig = "";
 
 	private final static String ALGORITMO_ASIM = "RSA";
-	private final static String ALGORITMO_SIM = "AES";
-	private final static String ALGORITMO_DIG = "HMACSHA256";
-//	private final static String ALGORITMO_SIM = "AES/ECB/PKCS5Padding";
+	//	private final static String ALGORITMO_SIM = "AES/ECB/PKCS5Padding";
 	private final static String PROVIDER = "BC";
 
 	public Cliente()
 	{
 		try {
+			System.out.println("Escriba el algoritmo sim�trico que desea utilizar:");
+			BufferedReader stdIn = new BufferedReader(new
+					InputStreamReader(System.in));
+			algSim = stdIn.readLine();
+			System.out.println("Escriba el algoritmo HMAC que desea utilizar:");
+			algDig = stdIn.readLine();
 			sock = new Socket("localhost", 8083);
 			escritor = new PrintWriter(sock.getOutputStream(), true);
 			lector = new BufferedReader(new InputStreamReader(
@@ -88,7 +94,7 @@ public class Cliente {
 		System.out.println(respuesta);
 		if(respuesta.equals("OK"))
 		{
-			escritor.println("ALGORITMOS:"+ALGORITMO_SIM+":"+ALGORITMO_ASIM+":"+ALGORITMO_DIG);
+			escritor.println("ALGORITMOS:"+algSim+":"+ALGORITMO_ASIM+":"+algDig);
 			respuesta = lector.readLine();
 			System.out.println(respuesta);
 			if(respuesta.equals("OK"))
@@ -121,7 +127,7 @@ public class Cliente {
 				reto();
 
 				autenticar();
-				
+
 				transaccion();
 
 			}
@@ -154,7 +160,12 @@ public class Cliente {
 		//si es HMACSHA1-->SHA1withRSA
 		//si es HMACMD5-->MD5withRSA
 		//si es HMACSHA256-->SHA256withRSA
+		if(algDig.equals("HMACSHA256"))
 		v3Cert.setSignatureAlgorithm("SHA256withRSA");
+		else if(algDig.equals("HMACMD5"))
+			v3Cert.setSignatureAlgorithm("MD5withRSA");
+		else if(algDig.equals("HMACSHA1"))
+			v3Cert.setSignatureAlgorithm("SHA1withRSA");
 
 		X509Certificate cert = v3Cert.generate(keyPair.getPrivate());
 		priKeyCliente = keyPair.getPrivate();
@@ -231,12 +242,12 @@ public class Cliente {
 			Cipher cipher = Cipher.getInstance(ALGORITMO_ASIM);
 			cipher.init(Cipher.DECRYPT_MODE, priKeyCliente);
 			byte[] data = DatatypeConverter.parseHexBinary(respuesta);
-			simKey = new SecretKeySpec(cipher.doFinal(data),ALGORITMO_SIM);
+			simKey = new SecretKeySpec(cipher.doFinal(data),algSim);
 			System.out.println("La llave simétrica es: " + simKey);
 
 			String autStr = "usuario,clave";
 			System.out.println("El usuario y la clave es: " + autStr);
-			cipher = Cipher.getInstance(ALGORITMO_SIM);
+			cipher = Cipher.getInstance(algSim);
 			cipher.init(Cipher.ENCRYPT_MODE, simKey);
 			byte[] cipAut = cipher.doFinal(autStr.getBytes());
 			escritor.println(DatatypeConverter.printHexBinary(cipAut));
@@ -275,27 +286,27 @@ public class Cliente {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public void transaccion() {
 		try {
 			String cedula = "1072699444";
 			System.out.println("La cédula es: " + cedula);
-			Cipher cipher = Cipher.getInstance(ALGORITMO_SIM);
+			Cipher cipher = Cipher.getInstance(algSim);
 			cipher.init(Cipher.ENCRYPT_MODE, simKey);
 			byte[] cipCed = cipher.doFinal(cedula.getBytes());
 			String hexCipCed = DatatypeConverter.printHexBinary(cipCed);
-			
-			Mac hmacsha256 = Mac.getInstance(ALGORITMO_DIG);
-			hmacsha256.init(simKey);
-			byte[] hsCed = hmacsha256.doFinal(cedula.getBytes());
+
+			Mac hmac = Mac.getInstance(algDig);
+			hmac.init(simKey);
+			byte[] hsCed = hmac.doFinal(cedula.getBytes());
 			System.out.println("El código hash de la cédula es: " + hsCed);
 			byte[] cipHsCed = cipher.doFinal(hsCed);
 			String hexCipHsCed = DatatypeConverter.printHexBinary(cipHsCed);
-			
+
 			String cipMes = hexCipCed + ":" + hexCipHsCed;
 			System.out.println("El mensaje enviado es: " + cipMes);
 			escritor.println(cipMes);			
-			
+
 			String respuesta = lector.readLine();
 			cipher.init(Cipher.DECRYPT_MODE, simKey);
 			byte[] bRes = cipher.doFinal(DatatypeConverter.parseHexBinary(respuesta));
@@ -306,7 +317,7 @@ public class Cliente {
 			}
 			else
 				System.out.println("LOHICIMOS");
-			
+
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -329,7 +340,7 @@ public class Cliente {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 	}
 
 }
