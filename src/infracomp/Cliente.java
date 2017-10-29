@@ -54,7 +54,7 @@ public class Cliente {
 	SecretKey simKey = null;
 
 	private final static String ALGORITMO_ASIM = "RSA";
-	private final static String ALGORITMO_SIM = "AES/ECB/PKCS5Padding";
+	private final static String ALGORITMO_SIM = "AES";
 
 	public Cliente()
 	{
@@ -221,7 +221,6 @@ public class Cliente {
 			cipher.init(Cipher.DECRYPT_MODE, priKeyCliente);
 			byte[] data = DatatypeConverter.parseHexBinary(respuesta);
 			simKey = new SecretKeySpec(cipher.doFinal(data),ALGORITMO_SIM);
-			System.out.println(simKey);
 
 			String autStr = "usuario,clave";			
 			cipher = Cipher.getInstance(ALGORITMO_SIM);
@@ -232,10 +231,14 @@ public class Cliente {
 			respuesta = lector.readLine();
 			cipher.init(Cipher.DECRYPT_MODE, simKey);
 			byte[] bRes = cipher.doFinal(DatatypeConverter.parseHexBinary(respuesta));
-			respuesta = bRes.toString();
+			respuesta = new String (bRes);
+			System.out.println(respuesta);
+			
 			if(!respuesta.equalsIgnoreCase("OK")) {
 				throw new Exception("No se logró autenticar.");
 			}
+			else
+				System.out.println("LOHICIMOS");
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
