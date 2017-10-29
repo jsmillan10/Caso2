@@ -191,7 +191,7 @@ public class Cliente {
 
 			//			System.out.println(Integer.parseInt(respuesta, 16));
 			if(Integer.parseInt(respuesta)==reto)
-				escritor.println("OK Sirvio");
+				escritor.println("OK");
 
 		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
