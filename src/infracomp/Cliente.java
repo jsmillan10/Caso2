@@ -13,6 +13,7 @@ import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
@@ -41,6 +42,7 @@ import org.bouncycastle.x509.X509V3CertificateGenerator;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -59,6 +61,7 @@ public class Cliente {
 
 	private final static String ALGORITMO_ASIM = "RSA";
 	private final static String ALGORITMO_SIM = "AES";
+	private final static String ALGORITMO_DIG = "HMACSHA256";
 //	private final static String ALGORITMO_SIM = "AES/ECB/PKCS5Padding";
 	private final static String PROVIDER = "BC";
 
@@ -85,7 +88,7 @@ public class Cliente {
 		System.out.println(respuesta);
 		if(respuesta.equals("OK"))
 		{
-			escritor.println("ALGORITMOS:AES:RSA:HMACSHA256");
+			escritor.println("ALGORITMOS:"+ALGORITMO_SIM+":"+ALGORITMO_ASIM+":"+ALGORITMO_DIG);
 			respuesta = lector.readLine();
 			System.out.println(respuesta);
 			if(respuesta.equals("OK"))
@@ -282,9 +285,11 @@ public class Cliente {
 			byte[] cipCed = cipher.doFinal(cedula.getBytes());
 			String hexCipCed = DatatypeConverter.printHexBinary(cipCed);
 			
-			int hsCed = cedula.hashCode();
+			Mac hmacsha256 = Mac.getInstance(ALGORITMO_DIG);
+			hmacsha256.init(simKey);
+			byte[] hsCed = hmacsha256.doFinal(cedula.getBytes());
 			System.out.println("El código hash de la cédula es: " + hsCed);
-			byte[] cipHsCed = cipher.doFinal((String.valueOf(hsCed)).getBytes());
+			byte[] cipHsCed = cipher.doFinal(hsCed);
 			String hexCipHsCed = DatatypeConverter.printHexBinary(cipHsCed);
 			
 			String cipMes = hexCipCed + ":" + hexCipHsCed;
